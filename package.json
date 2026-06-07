@@ -1,13 +1,20 @@
 {
   "name": "stfca",
-  "version": "1.2.27",
+  "version": "1.2.29",
   "description": "Unofficial Facebook Chat API for Node.js with Auto-Update System - Enhanced by ST | Sheikh Tamim",
   "main": "index.js",
   "files": [
     "src/",
+    "build/",
+    "lib/",
     "index.js",
+    "index.mjs",
     "utils.js",
-    "checkUpdate.js"
+    "checkUpdate.js",
+    "e2ee.js",
+    "e2eebot.js",
+    "e2eebot_new.js",
+    "config.json"
   ],
   "scripts": {
     "test": "node bot.js",
