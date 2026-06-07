@@ -7,6 +7,8 @@
 > **Unofficial Facebook Chat API for Node.js** - Interact with Facebook Messenger programmatically for ST-BOT 
 > 
 > **Enhanced & Maintained by ST | Sheikh Tamim**
+>
+> 🔐 **Now with End-to-End Encryption (E2EE) Support!**
 
 ## 🌟 What's New in ST-FCA
 
@@ -14,9 +16,10 @@
 - 🔄 Auto-reconnect with configurable intervals
 - 📊 Better connection status indicators
 - 🎨 Improved console output with colors
-- 🔐 Enhanced security and stability
+- 🔐 **NEW: End-to-End Encryption (E2EE) Support** - Full E2EE messaging system
 - 🚀 Automatic update checking and installation
 - 💡 Better error handling and debugging
+- 🔐 Enhanced security and stability
 
 ## 📦 Installation
 
@@ -179,7 +182,228 @@ login({ appState: [] }, (err, api) => {
 });
 ```
 
-## 📝 Message Types
+## � E2EE (End-to-End Encryption) - NEW FEATURE
+
+ST-FCA now includes **full End-to-End Encryption support** for secure encrypted messaging!
+
+### What is E2EE?
+
+E2EE (End-to-End Encryption) ensures that messages are encrypted on the sender's device and only decrypted on the recipient's device. No one in between (including servers) can read your messages.
+
+### E2EE Features
+
+✅ **Encrypted Messages** - All messages are encrypted  
+✅ **Encrypted Attachments** - Photos, videos, files encrypted  
+✅ **Automatic Detection** - Auto-routes between E2EE and standard messages  
+✅ **Message Reactions** - React to encrypted messages  
+✅ **Message Editing** - Edit encrypted messages  
+✅ **Typing Indicators** - Send typing indicators over E2EE  
+✅ **Device Persistence** - Reuse device keys across sessions  
+✅ **Media Server** - Local cache for decrypted files  
+
+### E2EE Quick Start
+
+```javascript
+const login = require("stfca");
+const fs = require("fs");
+
+login(
+    { appState: JSON.parse(fs.readFileSync("appstate.json", "utf8")) },
+    {
+        enableE2EE: true,  // 🔐 Enable E2EE
+        listenEvents: true,
+        autoMarkRead: true
+    },
+    (err, api) => {
+        if (err) return console.error(err);
+
+        // Connect E2EE Bridge
+        api.connectE2EE((err) => {
+            if (err) console.error("E2EE connection failed:", err);
+            console.log("✓ E2EE connected!");
+        });
+
+        // Get device data
+        api.getE2EEDeviceData((err, data) => {
+            if (!err) console.log("✓ Device data loaded");
+        });
+
+        // Listen for E2EE Messages
+        api.listenMqtt((err, event) => {
+            if (err) return console.error(err);
+
+            // Handle E2EE messages
+            if (event.type === "e2ee_message") {
+                console.log("🔐 E2EE Message:", event.body);
+                console.log("   Thread:", event.threadID);
+                console.log("   Encrypted: ✓ YES");
+
+                // Auto-reply with E2EE
+                api.sendMessage("Received: " + event.body, event.threadID);
+            }
+
+            // Handle E2EE reactions
+            if (event.type === "e2ee_message_reaction") {
+                console.log("🔐 E2EE Reaction:", event.reaction);
+            }
+
+            // Handle E2EE edits
+            if (event.type === "e2ee_message_edit") {
+                console.log("🔐 E2EE Message Edited:", event.body);
+            }
+        });
+    }
+);
+```
+
+### E2EE Event Types
+
+#### E2EE Message Event
+```javascript
+event.type === "e2ee_message"
+{
+    type: "e2ee_message",
+    senderID: "61568577897207",
+    threadID: "61568577897207:69@msgr",  // E2EE JID format
+    body: "Hello encrypted world!",
+    messageID: "m_1234567890",
+    isE2EE: true,  // 🔐 Marked as encrypted
+    isGroup: false,
+    timestamp: 1780805668000,
+    attachments: [],
+    mentions: {}
+}
+```
+
+#### E2EE Reaction Event
+```javascript
+event.type === "e2ee_message_reaction"
+{
+    type: "e2ee_message_reaction",
+    messageID: "m_1234567890",
+    reaction: "❤️",
+    userID: "61568577897207",
+    threadID: "61568577897207:69@msgr",
+    isE2EE: true
+}
+```
+
+#### E2EE Message Edit Event
+```javascript
+event.type === "e2ee_message_edit"
+{
+    type: "e2ee_message_edit",
+    messageID: "m_1234567890",
+    body: "Updated encrypted message",
+    senderID: "61568577897207",
+    isE2EE: true
+}
+```
+
+### E2EE API Methods
+
+```javascript
+// Enable E2EE in options
+api.setOptions({ enableE2EE: true });
+
+// Connect E2EE bridge
+api.connectE2EE(callback);
+
+// Get device encryption keys
+api.getE2EEDeviceData(callback);
+
+// Send encrypted message (auto-detected)
+api.sendMessage(message, e2eeThreadID, callback);
+
+// React to encrypted message
+api.setMessageReaction(emoji, messageID, callback);
+
+// Edit encrypted message
+api.editMessage(message, messageID, callback);
+
+// Unsend encrypted message
+api.unsendMessage(messageID, callback);
+
+// Send typing indicator (E2EE)
+api.sendTypingE2EE(threadID, callback);
+
+// Download encrypted media
+api.downloadE2EEMedia(messageID, callback);
+
+// Resolve encrypted attachment URL
+api.resolveE2EEAttachment(attachment);
+```
+
+### E2EE Connection Flow
+
+<img src="assest/e2eeconnect.png" alt="E2EE Connection Process" width="800"/>
+
+*Successful E2EE bridge connection showing:*
+- ✓ Login with cookies
+- ✓ MQTT connection established
+- ✓ E2EE bridge connected
+- ✓ Device keys established
+
+### E2EE Message Listening
+
+<img src="assest/e2eelisten.png" alt="E2EE Message Event" width="800"/>
+
+*E2EE message event showing:*
+- 🔐 Encrypted message received
+- ✓ Message JID format (E2EE identifier)
+- ✓ Sender and thread information
+- ✓ `isE2EE: true` flag
+
+### Configuration
+
+```javascript
+// In config.json
+{
+    "enableE2EE": true,
+    "enableTypingIndicator": true,
+    "typingDuration": 4000
+}
+```
+
+Or in login options:
+```javascript
+{
+    enableE2EE: true,
+    e2eeMemoryOnly: false,
+    autoReconnect: true,
+    listenEvents: true
+}
+```
+
+### Test E2EE Bot
+
+A complete E2EE test bot is included: [e2eebot.js](./e2eebot.js)
+
+```bash
+# Run the E2EE test bot
+node e2eebot.js
+```
+
+Commands:
+- `!ping` - Test bot response
+- `!info` - Show message info
+- `!echo <text>` - Echo message
+- `!react` - React with ❤️
+- `!help` - Show help
+
+### Full E2EE Documentation
+
+See [E2EE_GUIDE.md](./E2EE_GUIDE.md) for comprehensive documentation including:
+- ✅ System architecture
+- ✅ All API methods
+- ✅ Event types reference
+- ✅ Attachment handling
+- ✅ Device data management
+- ✅ Troubleshooting guide
+
+---
+
+## �📝 Message Types
 
 | Type                   | Usage                                                             |
 | ---------------------- | ----------------------------------------------------------------- |
