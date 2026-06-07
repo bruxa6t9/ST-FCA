@@ -329,7 +329,7 @@ module.exports = function (defaultFuncs, api, ctx) {
                   handleUrl(msg, form, callback, () =>
                     handleEmoji(msg, form, callback, () =>
                       handleMention(msg, form, callback, () =>
-                        sendContent(form, threadID, isSingleUser, messageAndOTID, callback)
+                        sendContent(form, threadID, isGroup, messageAndOTID, callback)
                       )
                     )
                   )
@@ -344,7 +344,7 @@ module.exports = function (defaultFuncs, api, ctx) {
               handleUrl(msg, form, callback, () =>
                 handleEmoji(msg, form, callback, () =>
                   handleMention(msg, form, callback, () =>
-                    sendContent(form, threadID, isSingleUser, messageAndOTID, callback)
+                    sendContent(form, threadID, isGroup, messageAndOTID, callback)
                   )
                 )
               )
