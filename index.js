@@ -279,6 +279,21 @@ function buildAPI(globalOptions, html, jar) {
         global.GoatBot.refreshFcaConfig = refreshFcaConfig;
     }
 
+    // ─── E2EE options from root config.json ────────────────────────────────────
+    try {
+        const _e2eeRootPath = path.join(process.cwd(), 'config.json');
+        if (fs.existsSync(_e2eeRootPath)) {
+            const _rootCfg = JSON.parse(fs.readFileSync(_e2eeRootPath, 'utf8'));
+            const _e2eeCfg = (_rootCfg && _rootCfg.e2ee) ? _rootCfg.e2ee : {};
+            if (_e2eeCfg.enable === true) globalOptions.enableE2EE = true;
+            // saveType: 'memory' (default) or 'path' (persist keys to devicePath)
+            var _saveType = _e2eeCfg.saveType || (typeof _e2eeCfg.memoryOnly !== 'undefined' ? (_e2eeCfg.memoryOnly ? 'memory' : 'path') : 'memory');
+            globalOptions.e2eeMemoryOnly = (_saveType !== 'path');
+            if (_saveType === 'path' && _e2eeCfg.devicePath) globalOptions.e2eeDevicePath = _e2eeCfg.devicePath;
+            if (_e2eeCfg.deviceData) globalOptions.e2eeDeviceData = _e2eeCfg.deviceData;
+        }
+    } catch (_) {}
+
     ctx.config = config;
     var api = {
         setOptions: setOptions.bind(null, globalOptions),
@@ -451,6 +466,51 @@ function buildAPI(globalOptions, html, jar) {
     };
     
     api.listen = api.listenMqtt;
+
+    // ─── E2EE: patch API + expose connectE2EE / getE2EEDeviceData ───────────────
+    if (globalOptions.enableE2EE) {
+        try {
+            var _e2ee = require('./e2ee');
+            _e2ee.patchApiForE2EE(api, ctx);
+
+            // api.connectE2EE(callback?) – start the E2EE client
+            api.connectE2EE = function (callback) {
+                var bridge = _e2ee.createBridge(ctx);
+                api._e2eeBridge = bridge;
+                return bridge.connect(callback);
+            };
+
+            // api.getE2EEBridge() – return the live bridge instance
+            api.getE2EEBridge = function () {
+                return ctx._e2eeBridge || null;
+            };
+
+            // api.getE2EEDeviceData(callback?) – fetch persistent device keys
+            api.getE2EEDeviceData = function (callback) {
+                var resolve, reject;
+                var promise = new Promise(function (res, rej) { resolve = res; reject = rej; });
+                if (ctx._e2eeDeviceData) {
+                    if (typeof callback === 'function') callback(null, ctx._e2eeDeviceData);
+                    resolve(ctx._e2eeDeviceData);
+                    return promise;
+                }
+                _e2ee.createBridge(ctx).getDeviceData()
+                    .then(function (d) {
+                        ctx._e2eeDeviceData = d;
+                        if (typeof callback === 'function') callback(null, d);
+                        resolve(d);
+                    })
+                    .catch(function (e) {
+                        if (typeof callback === 'function') callback(e);
+                        reject(e);
+                    });
+                return promise;
+            };
+        } catch (_patchErr) {
+            log.warn('E2EE', 'Failed to initialise E2EE:', _patchErr && _patchErr.message ? _patchErr.message : _patchErr);
+        }
+    }
+
     return {
         ctx,
         defaultFuncs,
