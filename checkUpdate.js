@@ -1,5 +1,4 @@
 const axios = require('axios');
-const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -22,96 +21,41 @@ function getCurrentVersion() {
   return '1.0.0';
 }
 
-async function checkForFCAUpdate() {
-  try {
-    console.log('\x1b[33m%s\x1b[0m', '🔍 Checking for ST-FCA updates...');
-    const { data: npmData } = await axios.get('https://registry.npmjs.org/@bruxa%2fstfca');
-    const latestVersion = npmData['dist-tags'].latest;
-    const currentVersion = getCurrentVersion();
-
-    if (latestVersion!== currentVersion) {
-      const isNewer = compareVersions(latestVersion, currentVersion) > 0;
-      if (!isNewer) {
-        console.log('\x1b[32m%s\x1b[0m', `✅ ST-FCA is up to date (v${currentVersion})`);
-        return false;
-      }
-      console.log('\x1b[32m%s\x1b[0m', `✨ New ST-FCA version available: ${latestVersion} (current: ${currentVersion})`);
-      console.log('\x1b[33m%s\x1b[0m', '📦 Updating ST-FCA package...');
-
-      try {
-        const { data: changesData } = await axios.get('https://raw.githubusercontent.com/bruxa6t9/ST-FCA/main/CHANGELOG.md');
-        console.log('\x1b[36m%s\x1b[0m', '📋 Recent Changes:');
-        const latestChanges = changesData.split('##')[1]?.split('\n').slice(0, 5).join('\n');
-        if (latestChanges) console.log(latestChanges);
-      } catch (_) {}
-
-      await updateNpmPackage(latestVersion);
-      await updateUserPackageJson(latestVersion);
-      console.log('\x1b[32m%s\x1b[0m', '✅ ST-FCA updated successfully!');
-      console.log('\x1b[33m%s\x1b[0m', '🔄 Restarting to apply changes...');
-      setTimeout(() => { process.exit(2); }, 1000);
-      return true;
-    } else {
-      console.log('\x1b[32m%s\x1b[0m', `✅ ST-FCA is up to date (v${currentVersion})`);
-      return false;
-    }
-  } catch (error) {
-    console.log('\x1b[31m%s\x1b[0m', '❌ Failed to check for ST-FCA updates:', error.message);
-    return false;
-  }
-}
-
 function compareVersions(a, b) {
-  var pa = a.split('.').map(Number);
-  var pb = b.split('.').map(Number);
-  for (var i = 0; i < 3; i++) {
-    var na = pa[i] || 0, nb = pb[i] || 0;
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const na = pa[i] || 0, nb = pb[i] || 0;
     if (na > nb) return 1;
     if (na < nb) return -1;
   }
   return 0;
 }
 
-async function updateNpmPackage(version) {
+/**
+ * Checks npm for a newer published version and logs a notice if one exists.
+ * Intentionally read-only: this function never installs, executes, or
+ * restarts anything. Updating the package is the operator's decision,
+ * made explicitly via their own `npm install` — not something this
+ * library does to itself on load.
+ */
+async function checkForFCAUpdate() {
   try {
-    console.log('\x1b[36m%s\x1b[0m', `📦 Running npm install @bruxa/stfca@${version}...`);
-    execSync(`npm install @bruxa/stfca@${version} --save`, { cwd: process.cwd(), stdio: 'inherit' });
-    console.log('\x1b[32m%s\x1b[0m', '✅ Package installed successfully!');
-    return true;
-  } catch (error) {
-    console.log('\x1b[31m%s\x1b[0m', '❌ Failed to install package:', error.message);
-    throw error;
-  }
-}
+    const { data: npmData } = await axios.get('https://registry.npmjs.org/@bruxa%2fstfca');
+    const latestVersion = npmData['dist-tags'].latest;
+    const currentVersion = getCurrentVersion();
 
-async function updateUserPackageJson(version) {
-  try {
-    const userPackageJsonPath = path.join(process.cwd(), 'package.json');
-    if (!fs.existsSync(userPackageJsonPath)) return;
-    const packageJson = JSON.parse(fs.readFileSync(userPackageJsonPath, 'utf-8'));
-    let updated = false;
-
-    if (packageJson.dependencies) {
-      if (packageJson.dependencies['stfca']) {
-        packageJson.dependencies['@bruxa/stfca'] = packageJson.dependencies['stfca'];
-        delete packageJson.dependencies['stfca'];
-        updated = true;
-      }
-      if (packageJson.dependencies['@bruxa/stfca']) {
-        packageJson.dependencies['@bruxa/stfca'] = `^${version}`;
-        updated = true;
-      }
+    if (compareVersions(latestVersion, currentVersion) > 0) {
+      console.log('\x1b[32m%s\x1b[0m', `[ST-FCA] Update available: v${currentVersion} -> v${latestVersion}`);
+      console.log('\x1b[33m%s\x1b[0m', `[ST-FCA] Run: npm install @bruxa/stfca@${latestVersion}`);
+      return true;
     }
-
-    if (updated) {
-      fs.writeFileSync(userPackageJsonPath, JSON.stringify(packageJson, null, 2));
-      console.log('\x1b[32m%s\x1b[0m', `✅ Updated package.json to @bruxa/stfca@${version}`);
-    }
-    return true;
+    return false;
   } catch (error) {
-    console.log('\x1b[31m%s\x1b[0m', '⚠️ Failed to update user package.json:', error.message);
+    // Silent by design: a failed version check must never block or crash
+    // a running bot. This function only ever informs; it never acts.
     return false;
   }
 }
 
-module.exports = { checkForFCAUpdate, updateNpmPackage, updateUserPackageJson };
+module.exports = { checkForFCAUpdate };

@@ -6,5 +6,6 @@
   "autoMarkDelivery": false,
   "selfListen": false,
   "online": true,
-  "logLevel": "silent"
+  "logLevel": "silent",
+  "enableThirdPartyUIDResolver": false
 }
